@@ -101,7 +101,7 @@ class _BaseDict:
 
 
 class RedisDict(_BaseDict, collections.MutableMapping):
-    def __init__(self, *, persistence, other=None, key=None, **kwargs):
+    def __init__(self, persistence, other=None, key=None, **kwargs):
         self.key = key or str(uuid4())
         self.redis = persistence
         self.cache = {}
