@@ -14,7 +14,9 @@ DICT_CONTEXT_STRAT = (st.booleans() | st.datetimes() | st.text()
 
 @pytest.fixture
 def redis():
-    return fakeredis.FakeStrictRedis()
+    redis_ = fakeredis.FakeStrictRedis()
+    yield redis_
+    redis_.flushall()
 
 
 @pytest.fixture
@@ -94,6 +96,8 @@ def test_cache_in_sync_when_update_operations_performed(redisdict):
     assert redisdict.cache == redisdict
 
     redisdict[1]['stuff'] = {'a': 'b'}
+    assert redisdict.cache == {1: {'stuff': {'a': 'b'}}}
+    assert redisdict == {1: {'stuff': {'a': 'b'}}}
     assert redisdict.cache == redisdict
 
     assert redisdict.cache == {1: {'stuff': {'a': 'b'}}}
@@ -108,6 +112,7 @@ def test_dict_operations(redisdict, redis, key):
     redisdict['10'] = 'ten'
     redisdict['20'] = 'twenty'
     redisdict['30'] = 'thirty'
+    assert len(redisdict) == 3
     assert RedisDict(persistence=redis, key=key) == redisdict
 
     # exercise delitem
@@ -172,6 +177,7 @@ def test_dict_operations(redisdict, redis, key):
 
     # clear
     redisdict.clear()
+    assert len(redisdict.cache) == 0
     assert len(redisdict) == 0
 
     # empty popitem
@@ -191,3 +197,22 @@ def test_dict_operations(redisdict, redis, key):
     redisdict2['20'] = 'twenty'
     redisdict2['10'] = 'ten'
     assert normal_dict == redisdict2
+
+
+def test_when_data_modified_in_another_instance_both_have_same_state(
+    redisdict, key, redis
+):
+    redisdict2 = RedisDict(persistence=redis, key=key)
+    assert redisdict == redisdict2
+
+    redisdict2['a'] = 1
+    assert redisdict['a'] == redisdict2['a']
+    assert redisdict == redisdict2
+
+    redisdict['b'] = 2
+    assert redisdict['b'] == redisdict2['b']
+    assert redisdict == redisdict2
+
+    redisdict2.update({'c': 3})
+    assert redisdict['c'] == redisdict2['c']
+    assert redisdict == redisdict2
