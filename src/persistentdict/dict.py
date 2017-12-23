@@ -102,9 +102,9 @@ class _BaseDict:
 
 class RedisDict(_BaseDict, collections.MutableMapping):
     def __init__(self, persistence, other=None, key=None, **kwargs):
-        self.key = key or str(uuid4())
-        self.redis = persistence
-        self.cache = {}
+        self._key = key or str(uuid4())
+        self._redis = persistence
+        self._cache = {}
 
         if other is not None:
             for (key, value) in other:
@@ -115,20 +115,20 @@ class RedisDict(_BaseDict, collections.MutableMapping):
 
     def __getitem__(self, key):
         try:
-            value = self.cache[key]
+            value = self._cache[key]
         except KeyError:
             value = self._backend_get(key=key)
-        self.cache[key] = value
+        self._cache[key] = value
         return value
 
     def __setitem__(self, key, value):
         self._backend_set(key=key, value=value)
-        self.cache[key] = value
+        self._cache[key] = value
 
     def __delitem__(self, key):
         if not self._backend_del(key):
             raise KeyError(key)
-        self.cache.__delitem__(key)
+        self._cache.__delitem__(key)
 
     def keys(self):
         return list(self.__iter__())
@@ -148,10 +148,10 @@ class RedisDict(_BaseDict, collections.MutableMapping):
 
     def clear(self):
         self._backend_clear()
-        self.cache.clear()
+        self._cache.clear()
 
     def __iter__(self, pipe=None):
-        for key in self._backend_load(self.redis).keys():
+        for key in self._backend_load(self._redis).keys():
             yield key
 
     def __contains__(self, key):
@@ -160,24 +160,24 @@ class RedisDict(_BaseDict, collections.MutableMapping):
     def _backend_load(self, pipe=None):
         return {
             self._unpickle(k): self._unpickle(v)
-            for k, v in self.redis.hgetall(self.key).items()
+            for k, v in self._redis.hgetall(self._key).items()
         }
 
     def _backend_clear(self):
-        self.redis.delete(self.key)
+        self._redis.delete(self._key)
 
     def _backend_key_exists(self, key):
-        return bool(self.redis.hexists(self.key, self._pickle(key)))
+        return bool(self._redis.hexists(self._key, self._pickle(key)))
 
     def _backend_del(self, key):
-        number_deleted = self.redis.hdel(self.key, self._pickle(key))
+        number_deleted = self._redis.hdel(self._key, self._pickle(key))
         return bool(number_deleted > 0)
 
     def _backend_set(self, key, value):
-        self.redis.hset(self.key, self._pickle(key), self._pickle(value))
+        self._redis.hset(self._key, self._pickle(key), self._pickle(value))
 
     def _backend_get(self, key):
-        pickled_value = self.redis.hget(self.key, self._pickle(key))
+        pickled_value = self._redis.hget(self._key, self._pickle(key))
         if pickled_value is None:
             raise KeyError(key)
         return self._unpickle(pickled_value)

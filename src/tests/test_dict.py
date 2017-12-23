@@ -91,20 +91,20 @@ def test_contains(redisdict):
 
 def test_cache_in_sync_when_update_operations_performed(redisdict):
     redisdict[1] = {'stuff': {}}
-    assert redisdict.cache == redisdict
+    assert redisdict._cache == redisdict
     assert redisdict == {1: {'stuff': {}}}
-    assert redisdict.cache == redisdict
+    assert redisdict._cache == redisdict
 
     redisdict[1]['stuff'] = {'a': 'b'}
-    assert redisdict.cache == {1: {'stuff': {'a': 'b'}}}
+    assert redisdict._cache == {1: {'stuff': {'a': 'b'}}}
     assert redisdict == {1: {'stuff': {'a': 'b'}}}
-    assert redisdict.cache == redisdict
+    assert redisdict._cache == redisdict
 
-    assert redisdict.cache == {1: {'stuff': {'a': 'b'}}}
+    assert redisdict._cache == {1: {'stuff': {'a': 'b'}}}
     assert redisdict == {1: {'stuff': {'a': 'b'}}}
     assert redisdict[1]['stuff'] == {'a': 'b'}
     assert redisdict[1] == {'stuff': {'a': 'b'}}
-    assert redisdict.cache == redisdict
+    assert redisdict._cache == redisdict
 
 
 def test_dict_operations(redisdict, redis, key):
@@ -177,7 +177,7 @@ def test_dict_operations(redisdict, redis, key):
 
     # clear
     redisdict.clear()
-    assert len(redisdict.cache) == 0
+    assert len(redisdict._cache) == 0
     assert len(redisdict) == 0
 
     # empty popitem
