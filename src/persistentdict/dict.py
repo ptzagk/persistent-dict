@@ -45,7 +45,7 @@ class _BaseDict:
     def pop(self, key, *args):
         if len(args) > 1:
             raise TypeError(
-                'pop expected at most 2 argumentd;lfkdfkdlkflks, got {}'.
+                'pop expected at most 2 argumentds, got {}'.
                 format(repr(1 + len(args))))
         try:
             value = self[key]
