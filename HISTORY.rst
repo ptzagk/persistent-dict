@@ -3,7 +3,7 @@
 Release History
 ---------------
 
-0.1.1 (2017-12-23)
+0.1.1 (unreleased)
 ++++++++++++++++++
 
 - Makes dict threadsafe.
