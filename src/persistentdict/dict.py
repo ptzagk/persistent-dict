@@ -105,7 +105,6 @@ class RedisDict(_BaseDict, collections.MutableMapping):
         self.key = key or str(uuid4())
         self.redis = persistence
         self.cache = {}
-        self.cache = self._load()
 
         if other is not None:
             for (key, value) in other:
@@ -115,23 +114,24 @@ class RedisDict(_BaseDict, collections.MutableMapping):
             self[key] = value
 
     def __getitem__(self, key):
-        data = self.cache
-        item = data.__getitem__(key)
-        return item
+        try:
+            value = self.cache[key]
+        except KeyError:
+            value = self._backend_get(key=key)
+        self.cache[key] = value
+        return value
 
     def __setitem__(self, key, value):
-        data = self.cache
-        data.__setitem__(key, value)
-        self._commit(key)
+        self._backend_set(key=key, value=value)
+        self.cache[key] = value
 
     def __delitem__(self, key):
-        data = self.cache
-        data.__delitem__(key)
-        self._commit(key)
-        return data
+        if not self._backend_del(key):
+            raise KeyError(key)
+        self.cache.__delitem__(key)
 
     def keys(self):
-        return self.cache.keys()
+        return list(self.__iter__())
 
     def copy(self):
         new_dict = self.__class__()
@@ -147,34 +147,40 @@ class RedisDict(_BaseDict, collections.MutableMapping):
         return new_dict
 
     def clear(self):
+        self._backend_clear()
         self.cache.clear()
-        self._commit()
 
-    def _load(self, dict_key=None):
-        if dict_key:
-            data = self._unpickle(self.redis.hget(self.key, dict_key))
-        else:
-            items = self.redis.hgetall(self.key)
-            data = {
-                self._unpickle(k): self._unpickle(v)
-                for k, v in items.items()
-            }
-        self.cache = data
-        return self.cache
+    def __iter__(self, pipe=None):
+        for key in self._backend_load(self.redis).keys():
+            yield key
 
-    def _commit(self, dict_key=None):
-        if dict_key:
-            try:
-                data = self.cache[dict_key]
-            except KeyError:
-                dict_key = self._pickle(dict_key)
-                self.redis.hdel(self.key, dict_key)
-                return
-        else:
-            data = self.cache
-        dict_key = self._pickle(dict_key)
-        val = self._pickle(data)
-        self.redis.hset(self.key, dict_key, val)
+    def __contains__(self, key):
+        return self._backend_key_exists(key)
+
+    def _backend_load(self, pipe=None):
+        return {
+            self._unpickle(k): self._unpickle(v)
+            for k, v in self.redis.hgetall(self.key).items()
+        }
+
+    def _backend_clear(self):
+        self.redis.delete(self.key)
+
+    def _backend_key_exists(self, key):
+        return bool(self.redis.hexists(self.key, self._pickle(key)))
+
+    def _backend_del(self, key):
+        number_deleted = self.redis.hdel(self.key, self._pickle(key))
+        return bool(number_deleted > 0)
+
+    def _backend_set(self, key, value):
+        self.redis.hset(self.key, self._pickle(key), self._pickle(value))
+
+    def _backend_get(self, key):
+        pickled_value = self.redis.hget(self.key, self._pickle(key))
+        if pickled_value is None:
+            raise KeyError(key)
+        return self._unpickle(pickled_value)
 
     def _unpickle(self, pickled_data):
         return pickle.loads(pickled_data) if pickled_data else None
