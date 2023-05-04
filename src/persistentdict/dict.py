@@ -7,8 +7,7 @@ from uuid import uuid4
 
 class _BaseDict:
     def __iter__(self):
-        for k in self.keys():
-            yield k
+        yield from self.keys()
 
     def has_key(self, key):
         try:
@@ -45,8 +44,8 @@ class _BaseDict:
     def pop(self, key, *args):
         if len(args) > 1:
             raise TypeError(
-                'pop expected at most 2 argumentds, got {}'.
-                format(repr(1 + len(args))))
+                f'pop expected at most 2 argumentds, got {repr(1 + len(args))}'
+            )
         try:
             value = self[key]
         except KeyError:
@@ -151,8 +150,7 @@ class RedisDict(_BaseDict, collections.MutableMapping):
         self._cache.clear()
 
     def __iter__(self, pipe=None):
-        for key in self._backend_load(self._redis).keys():
-            yield key
+        yield from self._backend_load(self._redis).keys()
 
     def __contains__(self, key):
         return self._backend_key_exists(key)
@@ -171,7 +169,7 @@ class RedisDict(_BaseDict, collections.MutableMapping):
 
     def _backend_del(self, key):
         number_deleted = self._redis.hdel(self._key, self._pickle(key))
-        return bool(number_deleted > 0)
+        return number_deleted > 0
 
     def _backend_set(self, key, value):
         self._redis.hset(self._key, self._pickle(key), self._pickle(value))
@@ -191,11 +189,8 @@ class RedisDict(_BaseDict, collections.MutableMapping):
         def parse_int(value):
             try:
                 int_data = int(data.real)
-            except OverflowError:
+            except (OverflowError, ValueError):
                 # inf
-                int_data = data
-            except ValueError:
-                # NaN
                 int_data = data
             return int_data
 
