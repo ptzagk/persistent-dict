@@ -64,7 +64,7 @@ def test_clear(redisdict):
 
     redisdict.clear()
 
-    assert list(redisdict.keys()) == []
+    assert not list(redisdict.keys())
 
     with pytest.raises(KeyError):
         redisdict[some_key]
@@ -85,8 +85,8 @@ def test_contains(redisdict):
     some_key = str(uuid.uuid4())
     redisdict[some_key] = 'something'
 
-    assert (some_key in redisdict) is True
-    assert ('unknown' in redisdict) is False
+    assert some_key in redisdict
+    assert 'unknown' not in redisdict
 
 
 def test_cache_in_sync_when_update_operations_performed(redisdict):
@@ -136,7 +136,7 @@ def test_dict_operations(redisdict, redis, key):
     assert '20' not in redisdict
 
     # __iter__
-    assert sorted([k for k in redisdict]) == ['10', '30']
+    assert sorted(list(redisdict)) == ['10', '30']
 
     # __len__
     assert len(redisdict) == 2
